@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Reconocimiento de números</title>
+
+<style>
+
+body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100vh;
+    margin:0;
+    font-family:Arial;
+}
+
+canvas{
+    border:1px solid black;
+}
+
+button{
+    margin:5px;
+    padding:8px 16px;
+    font-size:16px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>Dibuja un número</h2>
+<h3>Intenta que esté lo más centrado posible jejejejej</h3>
+
+<canvas id="canvas" width="280" height="280"></canvas>
+
+<br><br>
+
+<div>
+<button onclick="predecir()">Predecir</button>
+<button onclick="limpiar()">Limpiar</button>
+</div>
+
+<h3 id="resultado"></h3>
+
+<script>
+
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+
+ctx.fillStyle = "white";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+var dibujando = false;
+
+canvas.onmousedown = function(e){
+    dibujando = true;
+}
+
+canvas.onmouseup = function(e){
+    dibujando = false;
+    ctx.beginPath();
+}
+
+canvas.onmousemove = function(e){
+    if(!dibujando) return;
+
+    ctx.lineWidth = 25;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "black";
+
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.offsetX, e.offsetY);
+}
+
+function limpiar(){
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    document.getElementById("resultado").innerHTML = "Resultado: ";
+}
+
+function predecir(){
+
+    var img = document.createElement("canvas");
+    img.width = 28;
+    img.height = 28;
+
+    var imgctx = img.getContext("2d");
+    
+
+    imgctx.filter = "grayscale(1)";
+
+    imgctx.drawImage(canvas,0,0,280,280,0,0,28,28);
+
+    var data = imgctx.getImageData(0,0,28,28).data;
+
+    var arr = [];
+
+    for(var i=0;i<data.length;i+=4){
+        arr.push(data[i]);
+    }
+
+    var pixeles = arr.join(",");
+
+    fetch("http://localhost:8000",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+        body:"pixeles="+encodeURIComponent(pixeles)
+    })
+    .then(response => response.text())
+    .then(data => {
+        document.getElementById("resultado").innerHTML = "Resultado: " + data;
+    });
+
+}
+
+function predecir2(){
+
+    var img = document.createElement("canvas");
+    img.width = 28;
+    img.height = 28;
+
+    var imgctx = img.getContext("2d");
+
+    imgctx.drawImage(canvas,0,0,280,280,0,0,28,28);
+
+    var imgData = imgctx.getImageData(0,0,28,28);
+    var data = imgData.data;
+
+    var minX = 28, minY = 28, maxX = 0, maxY = 0;
+
+    for(var y=0;y<28;y++){
+        for(var x=0;x<28;x++){
+
+            var i = (y*28 + x)*4;
+            var pixel = data[i];
+
+            if(pixel < 200){
+                if(x < minX) minX = x;
+                if(y < minY) minY = y;
+                if(x > maxX) maxX = x;
+                if(y > maxY) maxY = y;
+            }
+        }
+    }
+
+    var width = maxX - minX;
+    var height = maxY - minY;
+
+    var crop = imgctx.getImageData(minX,minY,width,height);
+
+    var centered = document.createElement("canvas");
+    centered.width = 28;
+    centered.height = 28;
+
+    var cctx = centered.getContext("2d");
+
+    var dx = (28 - width)/2;
+    var dy = (28 - height)/2;
+
+    cctx.putImageData(crop,dx,dy);
+
+    var finalData = cctx.getImageData(0,0,28,28).data;
+
+    var arr = [];
+
+    for(var i=0;i<data.length;i+=4){
+
+    var pixel = data[i];
+
+    pixel = (255 - pixel) / 255;
+
+    arr.push(pixel);
+    }
+
+    var pixeles = arr.join(",");
+
+    fetch("http://localhost:8000",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/x-www-form-urlencoded"
+        },
+        body:"pixeles="+encodeURIComponent(pixeles)
+    })
+    .then(response => response.text())
+    .then(data => {
+        document.getElementById("resultado").innerHTML = "Resultado: " + data;
+    });
+
+}
+</script>
+
+
+</body>
+</html>
